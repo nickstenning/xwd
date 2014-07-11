@@ -9,7 +9,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/nickstenning/xwd/puzzle"
+	"github.com/nickstenning/xwd"
 )
 
 var showSolution = flag.Bool("s", false, "show the solution rather than the blank puzzle")
@@ -37,7 +37,7 @@ func main() {
 		logger.Fatal(err)
 	}
 
-	puz := &puzzle.Puzzle{}
+	puz := &xwd.Puzzle{}
 	err = puz.Load(data)
 	if err != nil {
 		logger.Fatal(err)
@@ -62,13 +62,13 @@ func main() {
 	}
 }
 
-func printGrid(p *puzzle.Puzzle, solution bool) {
+func printGrid(p *xwd.Puzzle, solution bool) {
 	for i := 0; i < p.Rows; i++ {
 		printRow(p, i, solution)
 	}
 }
 
-func printRow(p *puzzle.Puzzle, row int, solution bool) {
+func printRow(p *xwd.Puzzle, row int, solution bool) {
 	if row == 0 {
 		fmt.Print(boxDivider(p.Cols, boxTop))
 	} else {
@@ -90,7 +90,7 @@ func boxDivider(nCells int, box []string) string {
 	return strings.Join(out, "")
 }
 
-func boxRow(p *puzzle.Puzzle, row int, solution bool) string {
+func boxRow(p *xwd.Puzzle, row int, solution bool) string {
 	out := []string{}
 	i := row
 	for j := 0; j < p.Cols; j++ {

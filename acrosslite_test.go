@@ -1,4 +1,4 @@
-package puzzle
+package xwd
 
 import "testing"
 
