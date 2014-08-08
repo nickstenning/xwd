@@ -108,6 +108,23 @@ func (p *Puzzle) SetSolution(grid []string) error {
 	return nil
 }
 
+// Solution returns a slice of rows (themselves slices of Cells) that can be
+// used to range over the contents of this puzzle.
+func (p *Puzzle) Solution() [][]Cell {
+	rows := make([][]Cell, p.Rows)
+	for i := 0; i < p.Rows; i++ {
+		rows[i] = make([]Cell, p.Cols)
+		for j := 0; j < p.Cols; j++ {
+			c, err := p.Cell(i, j)
+			if err != nil {
+				panic(err)
+			}
+			rows[i][j] = *c
+		}
+	}
+	return rows
+}
+
 func (p *Puzzle) isBlackCell(row, col int) bool {
 	return p.solution[row][col] == P_BLACK[0]
 }
