@@ -7,6 +7,7 @@ import (
 	"log"
 	"math"
 	"os"
+	"path"
 	"strings"
 
 	"github.com/nickstenning/xwd"
@@ -20,7 +21,18 @@ var boxLin = []string{"│", "█", "│", "│"}
 var boxMid = []string{"├", "─", "┼", "┤"}
 var boxBot = []string{"└", "─", "┴", "┘"}
 
+func usage() {
+	fmt.Fprintf(
+		os.Stderr,
+		"Usage: %s [options] <puzzlefile>\n\n",
+		path.Base(os.Args[0]),
+	)
+	fmt.Fprintf(os.Stderr, "Options:\n")
+	flag.PrintDefaults()
+}
+
 func main() {
+	flag.Usage = usage
 	flag.Parse()
 
 	if flag.NArg() != 1 {
