@@ -12,13 +12,12 @@ type AcrossLite struct {
 	Data      []byte
 	Cols      int
 	Rows      int
-	Title     string
-	Author    string
-	Copyright string
-	Notes     string
-	Grid      []string
-	Solution  []string
-	Clues     []string
+	Title     []byte
+	Author    []byte
+	Copyright []byte
+	Notes     []byte
+	Solution  [][]byte
+	Clues     [][]byte
 	CksumFil  uint16
 	CksumCib  uint16
 	CksumMsk  [8]byte
@@ -35,7 +34,7 @@ func (a *AcrossLite) Sniff(data []byte) bool {
 	// Magic bytes
 	magic := make([]byte, 12)
 	_, err := buf.Read(magic)
-	if err == nil && string(magic) == "ACROSS&DOWN\x00" {
+	if err == nil && bytes.Compare(magic, []byte("ACROSS&DOWN\x00")) == 0 {
 		return true
 	}
 
@@ -51,12 +50,12 @@ func (a *AcrossLite) Parse(data []byte) error {
 	// Component           Offset Len  Type       Description
 	// ------------------- ------ ---  ---------  -----------
 	// Checksum            0x00   0x2  uint16     overall file checksum
-	// File Magic          0x02   0xC  string     NUL-terminated constant string:
+	// File Magic          0x02   0xC  []byte     NUL-terminated constant string:
 	//                                            "ACROSS&DOWN\0"
 	// CIB Checksum        0x0E   0x2  uint16
 	// Masked Checksum     0x10   0x8  [8]byte    a set of checksums, XOR-masked
 	//                                            against a magic string
-	// Version String      0x18   0x4  string     version, e.g. "1.2\0"
+	// Version String      0x18   0x4  []byte     version, e.g. "1.2\0"
 	// Reserved1C(?)       0x1C   0x2  ?          in many files, this is
 	//                                            uninitialized memory
 	// Scrambled Checksum  0x1E   0x2  short      in scrambled puzzles, a checksum
@@ -155,31 +154,31 @@ func (a *AcrossLite) Parse(data []byte) error {
 	// matrix.
 	buf.Next(a.Rows * a.Cols)
 
-	a.Title, err = readString(buf)
+	a.Title, err = readBytes(buf)
 	if err != nil {
 		return err
 	}
 
-	a.Author, err = readString(buf)
+	a.Author, err = readBytes(buf)
 	if err != nil {
 		return err
 	}
 
-	a.Copyright, err = readString(buf)
+	a.Copyright, err = readBytes(buf)
 	if err != nil {
 		return err
 	}
 
-	a.Clues = make([]string, 0)
+	a.Clues = make([][]byte, 0)
 	for i := 0; i < int(numClues); i++ {
-		str, err := readString(buf)
+		str, err := readBytes(buf)
 		if err != nil {
 			return err
 		}
 		a.Clues = append(a.Clues, str)
 	}
 
-	a.Notes, err = readString(buf)
+	a.Notes, err = readBytes(buf)
 	// Some puzzles just fall right off the end of the notes field, so io.EOF is
 	// allowable here and shouldn't cause an error.
 	if err != nil && err != io.EOF {
@@ -291,11 +290,15 @@ func (a *AcrossLite) Verify() bool {
 func (a *AcrossLite) Load(p *Puzzle) {
 	p.Rows = a.Rows
 	p.Cols = a.Cols
-	p.Title = a.Title
-	p.Author = a.Author
-	p.Copyright = a.Copyright
-	p.Notes = a.Notes
-	p.SetSolution(a.Solution)
+	p.Title = asString(a.Title)
+	p.Author = asString(a.Author)
+	p.Copyright = asString(a.Copyright)
+	p.Notes = asString(a.Notes)
+	solution := make([]string, len(a.Solution))
+	for i, s := range a.Solution {
+		solution[i] = asString(s)
+	}
+	p.SetSolution(solution)
 	a.loadClues(p)
 }
 
@@ -308,23 +311,23 @@ func (a *AcrossLite) loadClues(p *Puzzle) {
 	for i := 0; i < len(a.Clues); i++ {
 		if dIdx >= dMax {
 			// We're out of down squares, so this must be an across clue
-			p.cluesAcross[aIdx].Clue = a.Clues[i]
+			p.cluesAcross[aIdx].Clue = asString(a.Clues[i])
 			aIdx++
 			continue
 		}
 		if aIdx >= aMax {
 			// We're out of across squares, so this must be a down clue
-			p.cluesDown[dIdx].Clue = a.Clues[i]
+			p.cluesDown[dIdx].Clue = asString(a.Clues[i])
 			dIdx++
 			continue
 		}
 		// Now we pick the next lowest numbered square. If a square has both an
 		// across and a down clue, the across clue comes first.
 		if p.cluesDown[dIdx].Num < p.cluesAcross[aIdx].Num {
-			p.cluesDown[dIdx].Clue = a.Clues[i]
+			p.cluesDown[dIdx].Clue = asString(a.Clues[i])
 			dIdx++
 		} else {
-			p.cluesAcross[aIdx].Clue = a.Clues[i]
+			p.cluesAcross[aIdx].Clue = asString(a.Clues[i])
 			aIdx++
 		}
 	}
@@ -342,24 +345,34 @@ func cksum(data []byte, sum uint16) uint16 {
 	return sum
 }
 
-func readMatrix(buf *bytes.Buffer, rows, cols int) ([]string, error) {
-	matrix := make([]string, rows)
+func readMatrix(buf *bytes.Buffer, rows, cols int) ([][]byte, error) {
+	matrix := make([][]byte, rows)
 	for i := 0; i < rows; i++ {
 		bytes := make([]byte, cols)
 		err := binary.Read(buf, binary.LittleEndian, &bytes)
 		if err != nil {
 			return nil, err
 		}
-		matrix[i] = string(bytes)
+		matrix[i] = bytes
 	}
 	return matrix, nil
 }
 
-func readString(buf *bytes.Buffer) (string, error) {
-	out, err := buf.ReadString(0x0)
+func readBytes(buf *bytes.Buffer) ([]byte, error) {
+	out, err := buf.ReadBytes(0x0)
 	if err != nil {
 		return out, err
 	}
 	// Chop NUL off the end
 	return out[:len(out)-1], nil
+}
+
+// asString converts an ISO-8859-1 encoded byte slice into a UTF-8 encoded
+// string.
+func asString(b []byte) string {
+	runes := make([]rune, len(b))
+	for i, c := range b {
+		runes[i] = rune(c)
+	}
+	return string(runes)
 }
