@@ -58,18 +58,16 @@ func main() {
 	printGrid(puz, *showSolution)
 
 	fmt.Printf("\nAcross:\n\n")
-	across := puz.CluesAcross()
-	max := across[len(across)-1].Num + 1
-	wrapw := int(math.Floor(math.Log10(float64(max)))) + 1
-	for _, c := range across {
-		fmt.Printf("%*d. %s\n", wrapw, c.Num+1, c.Clue)
-	}
+	printClues(puz.CluesAcross())
 
 	fmt.Printf("\nDown:\n\n")
-	down := puz.CluesDown()
-	max = down[len(down)-1].Num + 1
-	wrapw = int(math.Floor(math.Log10(float64(max)))) + 1
-	for _, c := range down {
+	printClues(puz.CluesDown())
+}
+
+func printClues(clues []xwd.Clue) {
+	max := clues[len(clues)-1].Num + 1
+	wrapw := int(math.Floor(math.Log10(float64(max)))) + 1
+	for _, c := range clues {
 		fmt.Printf("%*d. %s\n", wrapw, c.Num+1, c.Clue)
 	}
 }
